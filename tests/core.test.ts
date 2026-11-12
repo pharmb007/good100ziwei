@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { calculate } from '../lib/calculate';
+import { draftTranscript } from '../lib/studio';
+const b={date:'1990-06-15',time:'10:30',city:'台北',gender:'female',late:'next-day',leap:'split',verified:true};
+const chart=calculate(b);
+assert.equal(chart.palaces.length,12);
+assert.equal(new Set(chart.palaces.map(p=>p.branch)).size,12);
+assert.equal(chart.palaces.flatMap(p=>p.stars).filter(s=>s.type==='major').length,14);
+assert.throws(()=>calculate({...b,date:'2026-02-30'}));
+assert.throws(()=>calculate({...b,verified:false}));
+assert.throws(()=>calculate({...b,time:'24:30'}));
+const next=calculate({...b,date:'1990-12-31',time:'23:30'});
+assert.equal(next.birthInfo.year,1991);assert.equal(next.birthInfo.month,1);assert.equal(next.birthInfo.day,1);assert.equal(next.birthInfo.hour,0);
+const same=calculate({...b,date:'1990-12-31',time:'23:30',late:'current-day'});
+assert.equal(same.birthInfo.day,31);assert.equal(same.birthInfo.year,1990);
+const text='客戶：我想了解工作。\nBrian：如果明年農曆三月有合作邀約，先確認條件。\n不明講者的話。';
+const sections=draftTranscript(text);
+assert.equal(sections.length,3);assert.equal(sections[0].topic,'客戶背景');assert.equal(sections[1].text,'如果明年農曆三月有合作邀約，先確認條件。');assert.equal(sections[2].topic,'待分類');assert(sections.every(s=>!s.confirmed));
+console.log('PASS: chart integrity, invalid dates, input confirmation, late-zi rollover, transcript provenance.');
+
