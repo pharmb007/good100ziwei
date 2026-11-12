@@ -1,4 +1,26 @@
-import { generateChart,setBrightnessSchool } from './ziwei/algorithm';
-import { z } from 'zod';
-const schema=z.object({date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),time:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),city:z.string().max(100),gender:z.enum(['male','female']),late:z.enum(['next-day','current-day']),leap:z.enum(['split','next-month','prev-month','origin-month']),verified:z.literal(true)});
-export function calculate(input:unknown){const b=schema.parse(input);const [y,m,d]=b.date.split('-').map(Number);if(y<1900||y>2100)throw Error('初版支援 1900–2100 年。');const date=new Date(Date.UTC(y,m-1,d));if(date.toISOString().slice(0,10)!==b.date)throw Error('出生日期不存在。');const [h,minute]=b.time.split(':').map(Number);if(h===23&&b.late==='next-day')date.setUTCDate(date.getUTCDate()+1);setBrightnessSchool('QS');return generateChart({year:date.getUTCFullYear(),month:date.getUTCMonth()+1,day:date.getUTCDate(),hour:Math.floor((h+1)/2)%12,gender:b.gender,city:b.city,origInput:{year:y,month:m,day:d,clockHour:h,clockMinute:minute}},{leapMonth:b.leap});}
+import { generateChart, setBrightnessSchool } from './ziwei/algorithm';
+import { birthCalendars, birthSchema, periodForTime } from './birth';
+
+export function calculate(input: unknown) {
+  const birth = birthSchema.parse(input);
+  const period = periodForTime(birth.time);
+  if (!period) throw Error('請選擇出生時辰。');
+  if (!birth.verified) throw Error('請先確認出生日期與時辰。');
+
+  const { solar } = birthCalendars(birth);
+  const year = solar.getYear(), month = solar.getMonth(), day = solar.getDay();
+  const [hour, minute] = birth.time.split(':').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (period.value === '23:00' && birth.late === 'next-day') date.setUTCDate(date.getUTCDate() + 1);
+
+  setBrightnessSchool('QS');
+  return generateChart({
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+    hour: Math.floor((hour + 1) / 2) % 12,
+    gender: birth.gender,
+    city: birth.city,
+    origInput: { year, month, day, clockHour: hour, clockMinute: minute },
+  }, { leapMonth: birth.leap, kuiyue: birth.kuiyue, jiekong: birth.jiekong, tianma: birth.tianma });
+}

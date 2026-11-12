@@ -8,6 +8,13 @@
       "when": 1794478148459,
       "tag": "0000_light_owl",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794495187790,
+      "tag": "0001_past_quasimodo",
+      "breakpoints": true
     }
   ]
 }

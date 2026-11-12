@@ -6,8 +6,8 @@
 import { astro } from 'iztro';
 import { Solar, LunarMonth } from 'lunar-javascript';
 import type { BirthInfo, LunarInfo, Star, Palace, DaXian, DaXianSiHua, ZiweiChart } from './types';
-import { BRANCHES, STEMS } from './constants';
-import { schoolStarBrightness, type BrightnessSchool } from './school-data';
+import { BRANCHES, STEMS, TIANMA_TABLE } from './constants';
+import { SCHOOL_JIEKONG_VARIANTS, schoolStarBrightness, type BrightnessSchool } from './school-data';
 import { SCHOOL_AX } from './school-tables.generated';
 import { DEFAULT_LEAP_MONTH } from './school-config';
 // 飞星派工具仅供导出，不再在排盘时调用（倪师《天纪 03》：四化星永远固定不动）
@@ -369,9 +369,21 @@ function relocateStar(palaces: Palace[], name: string, targetBranch: number): vo
   }
 }
 
-function applySchoolKuiyue(palaces: Palace[], yearStemCn: string): void {
+const referenceKuiyue = {
+  '1': ['丑子亥亥丑子丑午卯卯', '未申酉酉未申未寅巳巳'],
+  '2': ['丑子亥亥丑子寅寅卯卯', '未申酉酉未申午午巳巳'],
+  '3': ['丑子亥亥丑子丑寅卯卯', '未申酉酉未申未午巳巳'],
+} as const;
+
+function applySchoolKuiyue(palaces: Palace[], yearStemCn: string, variant?: keyof typeof referenceKuiyue): void {
   const gan = STEMS.indexOf(yearStemCn); // 甲=0 … 癸=9
   if (gan < 0) return;
+  if (variant) {
+    const [kui, yue] = referenceKuiyue[variant];
+    relocateStar(palaces, '天魁', BRANCHES.indexOf(kui[gan]));
+    relocateStar(palaces, '天钺', BRANCHES.indexOf(yue[gan]));
+    return;
+  }
   const row = SCHOOL_AX.KY_ARR1[gan + 1]; // KY 表「甲=1」起;子起一编码
   if (!row) return;
   relocateStar(palaces, '天魁', row[0] - 1); // 子起一(子=1) → BRANCHES 索引(子=0)
@@ -452,7 +464,7 @@ function applySchoolFuxun(palaces: Palace[]): void {
 
 export function generateChart(
   birthInfo: BirthInfo,
-  opts?: { leapMonth?: LunarMonthPolicy },
+  opts?: { leapMonth?: LunarMonthPolicy; kuiyue?: keyof typeof referenceKuiyue; jiekong?: 'double' | 'single' | 'zhanyan'; tianma?: 'year' | 'month' },
 ): ZiweiChart {
   const { year, month, day, hour, gender } = birthInfo;
   if (!Number.isInteger(hour) || hour < 0 || hour > 11) {
@@ -580,7 +592,7 @@ export function generateChart(
 
   // ★ 天魁天钺对齐默认派(KY1)——用户决策 2026-05-30,实测仅辛年与现状不同(见上方函数注释)
   const yearStemCn = (astrolabe.rawDates?.chineseDate?.yearly?.[0]) as string | undefined;
-  if (yearStemCn) applySchoolKuiyue(palaces, yearStemCn);
+  if (yearStemCn) applySchoolKuiyue(palaces, yearStemCn, opts?.kuiyue);
 
   // ── 当前年龄 & 大限 ──
   // ★ 用 iztro horoscope.age.nominalAge（中国虚岁口径，与 daXianAge 范围一致）
@@ -649,6 +661,15 @@ export function generateChart(
 
   // ★ 2026-08-14 金标准盘核对：截空/副截阴干对调 + 年支大耗 + 旬空成对副旬
   applySchoolJiekong(palaces, lunarInfo.yearStem);
+  if (opts?.jiekong === 'single' || opts?.jiekong === 'zhanyan') {
+    const table = opts.jiekong === 'single' ? SCHOOL_JIEKONG_VARIANTS.v1 : SCHOOL_JIEKONG_VARIANTS.v3;
+    for (const palace of palaces) palace.stars = palace.stars.filter(star => star.name !== '副截');
+    relocateStar(palaces, '截空', table[lunarInfo.yearStem + 1] - 1);
+  }
+  if (opts?.tianma === 'month') {
+    const monthBranch = (effectiveLunar.lunarMonth + 1) % 12;
+    relocateStar(palaces, '天马', TIANMA_TABLE[monthBranch]);
+  }
   applySchoolDahao(palaces, lunarInfo.yearBranch);
   applySchoolFuxun(palaces);
 
