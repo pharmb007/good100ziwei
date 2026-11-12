@@ -61,3 +61,23 @@ button.palace-tag:focus-visible { outline: 2px solid #29103e; outline-offset: 2p
 .shared-detail details { border-top: 1px solid #e5dfd4; padding: 12px 0; }
 .shared-detail summary { cursor: pointer; font-weight: 600; }
 .client-row[aria-pressed="true"] { background: #f4ebfa; }
+
+.account-status strong { overflow-wrap: anywhere; }
+
+/* Each star occupies a column. Its brightness and transformations stay below it. */
+.palace-stars { column-gap: 4px; row-gap: 6px; align-items: flex-start; }
+.chart-star { flex-direction: column; flex-wrap: nowrap; gap: 2px; min-width: 1em; }
+.chart-star-name { writing-mode: vertical-rl; text-orientation: upright; line-height: 1.12; }
+.chart-star .chart-mark { margin: 0; min-width: 1.1em; text-align: center; }
+.chart-year-controls { display: flex; align-items: center; gap: 5px; }
+.chart-year-controls button, .chart-year-controls select { border: 1px solid #c9a5db; border-radius: 4px; background: #fff; color: #5c247a; padding: 4px 7px; font: inherit; }
+.chart-year-controls button { min-width: 29px; cursor: pointer; font-weight: 700; }
+.chart-year-controls button:disabled { cursor: default; opacity: .4; }
+.chart-grid .chart-annual-summary { color: #185584; font-weight: 700; }
+.palace-detail .year-mark, .moving-palace { border-radius: 3px; padding: 1px 3px; color: #fff; }
+.moving-palace { font-size: 10px; }
+.palace-title { justify-content: flex-start; }
+.palace-branch { margin-left: auto; }
+@media print {
+  .moving-palace, .palace-detail .year-mark, .palace-detail .decade-mark { print-color-adjust: exact; }
+}

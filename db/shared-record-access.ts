@@ -10,10 +10,11 @@ export function sharedRecordRole(user: ChatGPTUser) {
 }
 
 export async function registerSharedRecordAccount(user: ChatGPTUser) {
-  if (sharedRecordRole(user) !== 'shared') return;
+  if (sharedRecordRole(user) !== 'shared') return undefined;
   await getDb().insert(sharedRecordAccounts)
     .values({ email: user.email.trim().toLowerCase(), userId: user.userId })
     .onConflictDoNothing();
+  return (await getSharedRecordOwner()) === user.userId;
 }
 
 export async function getSharedRecordOwner() {

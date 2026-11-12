@@ -54,3 +54,29 @@ assert.equal(recordAccessRole('other@example.test', administrator, sharedAccount
 assert.equal(recordAccessRole(administrator, administrator), 'personal');
 assert.equal(recordAccessRole(administrator, administrator, administrator), 'personal');
 console.log('PASS: shared records restrict the administrator and subject to their configured accounts.');
+
+const { getChartSihuaLayers } = await import('../lib/chart-sihua');
+const referenceChart = calculate(reference);
+const showLayers = (mode: string) => getChartSihuaLayers(referenceChart, reference, 2026, mode).layers;
+assert.deepEqual(showLayers('natal').map(layer => layer.kind), ['natal']);
+assert.deepEqual(showLayers('decade').map(layer => layer.kind), ['natal', 'decade']);
+const annualLayers = showLayers('year');
+assert.deepEqual(annualLayers.map(layer => layer.kind), ['natal', 'decade', 'year']);
+assert.equal(annualLayers[0].transforms.权, '巨门');
+assert.equal(annualLayers[1].transforms.禄, '巨门');
+assert.equal(annualLayers[2].transforms.权, '天机');
+assert.equal(annualLayers[1].transforms.科, '文曲');
+assert.equal(annualLayers[2].transforms.科, '文昌');
+console.log('PASS: cumulative chart layers and overlapping natal/decade marks.');
+
+const { movingPalaceName } = await import('../lib/chart-sihua');
+const year2026 = getChartSihuaLayers(referenceChart, reference, 2026, 'year');
+const year2027 = getChartSihuaLayers(referenceChart, reference, 2027, 'year');
+assert.equal(year2026.annualBranch, 6); // 午
+assert.equal(year2027.annualBranch, 7); // 未
+assert.equal(year2026.decadeBranch, 9); // 酉
+assert.equal(movingPalaceName(6, 6), '命');
+assert.equal(movingPalaceName(6, 5), '兄');
+assert.equal(movingPalaceName(6, 9), '田');
+assert.notDeepEqual(year2026.layers[2].transforms, year2027.layers[2].transforms);
+console.log('PASS: annual palace and transformations follow the chosen year.');

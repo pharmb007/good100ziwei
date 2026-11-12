@@ -10,9 +10,26 @@ import type { Case,Report } from '@/lib/studio';
 const section=z.object({id:z.string().max(50),source:z.string().max(50000),text:z.string().max(50000),topic:z.enum(['本命特質','事業與工作','財務與資源','關係與家庭','年度流年','五行觀點','行動與結語','客戶背景','待分類']),confirmed:z.boolean()});
 const schema=z.object({id:z.string().uuid(),name:z.string().min(1).max(100),date:z.string().max(20),year:z.number().int().min(1900).max(2100),question:z.string().max(10000),birth:birthSchema,chart:z.unknown().nullable(),transcript:z.string().max(150000),sections:z.array(section).max(500),reminders:z.array(z.object({id:z.string().max(100),month:z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),period:z.string().min(1).max(300),text:z.string().min(1).max(3000),approved:z.boolean()})).max(200),version:z.number().int().min(0),sample:z.boolean()});
 function json(v:unknown,status=200){return Response.json(v,{status,headers:{'Cache-Control':'no-store'}});}
-export async function GET(){const u=await getChatGPTUser();if(!u)return json({error:'請先登入。'},401);try{await registerSharedRecordAccount(u);const rows=await getDb().select().from(consultations).where(eq(consultations.owner,u.userId)).orderBy(desc(consultations.updatedAt));return json({canViewShared:sharedRecordRole(u)==='administrator',records:rows.map(r=>({...JSON.parse(r.payload),version:r.version,updatedAt:r.updatedAt}))});}catch{return json({error:'暫時無法讀取資料，請稍後再試。'},503);}}
+export async function GET() {
+  const user = await getChatGPTUser();
+  if (!user) return json({ error: '請先登入。' }, 401);
+  try {
+    const role = sharedRecordRole(user);
+    const sharedLinked = await registerSharedRecordAccount(user);
+    const rows = await getDb().select().from(consultations)
+      .where(eq(consultations.owner, user.userId)).orderBy(desc(consultations.updatedAt));
+    return json({
+      canViewShared: role === 'administrator',
+      account: { email: user.email, role, sharedLinked },
+      records: rows.map(row => ({ ...JSON.parse(row.payload), version: row.version, updatedAt: row.updatedAt })),
+    });
+  } catch {
+    return json({ error: '暫時無法讀取資料，請稍後再試。' }, 503);
+  }
+}
 export async function POST(req:Request){const u=await getChatGPTUser();if(!u)return json({error:'請先登入。'},401);if(req.headers.get('sec-fetch-site')==='cross-site')return json({error:'來源驗證失敗'},403);
 try{const body=await req.text();if(body.length>800000)return json({error:'內容過大，請分次整理。'},413);const input=JSON.parse(body),data=schema.parse(input.record);const db=getDb();const [existing]=await db.select().from(consultations).where(eq(consultations.id,data.id));if(existing&&existing.owner!==u.userId)return json({error:'無法存取此檔案。'},404);if((existing?.version||0)!==data.version)return json({error:'資料已在其他頁面更新，請重新載入再編輯。'},409);
+await registerSharedRecordAccount(u);
 const previous=existing?JSON.parse(existing.payload):null;
 const old:Case|null=previous;
 const transcriptHistory=[...(previous?.transcriptHistory||[])];if(old&&old.transcript!==data.transcript)transcriptHistory.push({savedAt:old.updatedAt,transcript:old.transcript,sections:old.sections});

@@ -1,48 +1,49 @@
 'use client';
 
 import { useState } from 'react';
-import { birthDateLabels, fourRules, type Birth } from '@/lib/birth';
+import { birthDateLabels, type Birth } from '@/lib/birth';
 import { tw } from '@/lib/studio';
 import { BRANCHES, STEMS } from '@/lib/ziwei/constants';
-import { getDaXianSiHua, getLiuNianSiHua } from '@/lib/ziwei/sihua';
-import { getDaXianIndexForYear } from '@/lib/ziwei/yunxian-context';
-import type { SiHua, ZiweiChart } from '@/lib/ziwei/types';
+import { getChartSihuaLayers, movingPalaceName } from '@/lib/chart-sihua';
+import { getYearBranchIndex, getYearStemIndex } from '@/lib/ziwei/sihua';
+import type { ZiweiChart } from '@/lib/ziwei/types';
 
 export const chartDisplayDefaults = { palaceInfo: true, brightness: false, relations: 'selected' as 'selected' | 'ming' | 'off' };
 
-function configuredTransforms(birth: Birth, stem: number, base: Partial<Record<SiHua, string>>) {
-  const transforms = { ...base };
-  for (const rule of fourRules) {
-    const star = birth.four?.[rule.key];
-    if (rule.stem === stem && star) transforms[rule.mark] = star;
-  }
-  return transforms;
-}
-
 const positions = [[4,3],[4,2],[4,1],[3,1],[2,1],[1,1],[1,2],[1,3],[1,4],[2,4],[3,4],[4,4]];
 const zodiac = '鼠牛虎兔龍蛇馬羊猴雞狗豬';
+const supportedYears = Array.from({ length: 201 }, (_, index) => 1900 + index);
 
-export function Chart({ chart, birth, name, year, mode = 'natal', display = chartDisplayDefaults }: {
+export function Chart({ chart, birth, name, year: reportYear, mode = 'natal', display = chartDisplayDefaults }: {
   chart: ZiweiChart; birth: Birth; name: string; year: number; mode?: string; display?: typeof chartDisplayDefaults;
 }) {
-  const [selection, setSelection] = useState<number | null>(null);
-  const decade = getDaXianIndexForYear(chart, year);
-  const decadeBranch = chart.daXians[decade]?.palaceBranch;
-  const layer = mode === 'year' ? getLiuNianSiHua(year) : mode === 'decade' ? getDaXianSiHua(chart, decade, year) : null;
-  const overlays = layer ? configuredTransforms(birth, layer.stemIndex, layer.transforms) : {};
-  const originalMarks: Partial<Record<SiHua, string>> = {};
-  for (const palace of chart.palaces) for (const star of palace.stars) {
-    if (star.siHua) originalMarks[star.siHua] = star.name;
-  }
-  const natal = configuredTransforms(birth, chart.lunarInfo.yearStem, originalMarks);
-  const anchor = display.relations === 'ming' ? chart.mingGongBranch : selection ?? (mode === 'decade' ? decadeBranch : undefined) ?? chart.mingGongBranch;
+  const [yearOverride, setYearOverride] = useState<number>();
+  const [selection, setSelection] = useState<{ view: string; branch: number }>();
+  const validReportYear = Number.isInteger(reportYear) && reportYear >= 1900 && reportYear <= 2100;
+  const year = mode === 'year' ? yearOverride ?? (validReportYear ? reportYear : new Date().getFullYear()) : reportYear;
+  const { layers, decadeBranch, annualBranch } = getChartSihuaLayers(chart, birth, year, mode);
+  const view = mode + ':' + year;
+  const selectedBranch = selection?.view === view ? selection.branch : undefined;
+  const anchor = display.relations === 'ming'
+    ? chart.mingGongBranch
+    : selectedBranch ?? annualBranch ?? decadeBranch ?? chart.mingGongBranch;
   const related = new Set([4, 6, 8].map(offset => (anchor + offset) % 12));
   const dates = birthDateLabels(birth);
-  const layerLabel = mode === 'year' ? '流年四化' : '大限四化';
+  const annualName = STEMS[getYearStemIndex(year)] + BRANCHES[getYearBranchIndex(year)];
+  const annualAge = year - chart.lunarInfo.lunarYear + 1;
 
   return <div className="chart-scroll"><div className="chart-grid">
     <div className="chart-center">
-      <span className="chart-mode">{mode === 'natal' ? '本命盤' : `${year} 年・${layerLabel}`}</span>
+      {mode === 'year' ? <>
+        <div className="chart-year-controls">
+          <button type="button" onClick={() => setYearOverride(year - 1)} disabled={year <= 1900} aria-label="上一個流年">‹</button>
+          <select aria-label="流年年份" value={year} onChange={event => setYearOverride(Number(event.target.value))}>
+            {supportedYears.map(value => <option value={value} key={value}>{value} 年</option>)}
+          </select>
+          <button type="button" onClick={() => setYearOverride(year + 1)} disabled={year >= 2100} aria-label="下一個流年">›</button>
+        </div>
+        <p className="chart-annual-summary">{annualName}流年{annualAge > 0 && ` · 虛歲 ${annualAge}`}</p>
+      </> : <span className="chart-mode">{mode === 'natal' ? '本命盤' : `${year} 年・大限四化`}</span>}
       <h2>{name}</h2>
       <p>{tw(chart.yinYangGender || (birth.gender === 'female' ? '女命' : '男命'))} · {tw(chart.wuxingJuName)} · 生肖{zodiac[chart.lunarInfo.yearBranch]}</p>
       <dl className="chart-dates">
@@ -52,7 +53,7 @@ export function Chart({ chart, birth, name, year, mode = 'natal', display = char
       {birth.city && <p>出生地 {birth.city}</p>}
       {chart.lunarInfo.fourPillars && <p className="chart-pillars">節氣四柱 <b>{chart.lunarInfo.fourPillars.join('　')}</b></p>}
       {(chart.mingZhu || chart.shenZhu) && <p>命主 {tw(chart.mingZhu || '—')}　身主 {tw(chart.shenZhu || '—')}</p>}
-      <div className="chart-legend"><span className="natal-mark">生年四化</span>{layer && <span className={mode + '-mark'}>{layerLabel}</span>}</div>
+      <div className="chart-legend">{layers.map(layer => <span key={layer.kind} className={layer.kind + '-mark'}>{layer.label}</span>)}</div>
     </div>
     {chart.palaces.map(palace => {
       const focused = display.relations !== 'off' && palace.branch === anchor;
@@ -64,20 +65,25 @@ export function Chart({ chart, birth, name, year, mode = 'natal', display = char
         <div className="palace-stars">
           {[...palace.stars].sort((a,b) => Number(b.type === 'major') - Number(a.type === 'major')).map((star,i) =>
             <span className={'chart-star star-' + star.type} key={star.name + i}>
-              <span>{tw(star.name)}</span>
+              <span className="chart-star-name">{tw(star.name)}</span>
               {display.brightness && star.brightnessRaw && <small className="star-brightness">{tw(star.brightnessRaw)}</small>}
-              {Object.entries(natal).filter(([, target]) => target === star.name).map(([mark]) => <span key={mark} className="chart-mark natal-mark" title="生年四化">{tw(mark)}</span>)}
-              {Object.entries(overlays).filter(([, target]) => target === star.name).map(([mark]) => <span key={mark} className={'chart-mark ' + mode + '-mark'} title={layerLabel}>{tw(mark)}</span>)}
+              {layers.flatMap(layer => Object.entries(layer.transforms)
+                .filter(([, target]) => target === star.name)
+                .map(([mark]) => <span key={layer.kind + mark} className={'chart-mark ' + layer.kind + '-mark'}
+                  title={layer.label + ' · 化' + tw(mark)} aria-label={layer.label + ' · 化' + tw(mark)}>{tw(mark)}</span>))}
             </span>)}
         </div>
         <div className="palace-footer">
           {display.palaceInfo && <div className="palace-detail">
             {palace.daXianAge && <strong>{palace.daXianAge.join('–')} 歲</strong>}
-            {mode === 'decade' && decadeBranch === palace.branch && <span className="decade-mark">大限命宮</span>}
+            {decadeBranch === palace.branch && <span className="decade-mark">大限命宮</span>}
+            {annualBranch === palace.branch && <span className="year-mark">流年命宮</span>}
             {palace.isEmpty && <small>空宮</small>}
           </div>}
           <div className="palace-title">
-            {interactive ? <button type="button" className="palace-tag" aria-pressed={focused} onClick={() => setSelection(palace.branch)}>{tag}</button> : <span className="palace-tag">{tag}</span>}
+            {interactive ? <button type="button" className="palace-tag" aria-pressed={focused} onClick={() => setSelection({ view, branch: palace.branch })}>{tag}</button> : <span className="palace-tag">{tag}</span>}
+            {decadeBranch !== undefined && <span className="moving-palace decade-mark" title="大限宮位">大{movingPalaceName(decadeBranch, palace.branch)}</span>}
+            {annualBranch !== undefined && <span className="moving-palace year-mark" title="流年宮位">年{movingPalaceName(annualBranch, palace.branch)}</span>}
             <span className="palace-branch">{STEMS[palace.stem]}{BRANCHES[palace.branch]}</span>
           </div>
         </div>

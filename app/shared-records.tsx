@@ -59,7 +59,7 @@ export function SharedRecords({ openReport }: { openReport: (report: Report) => 
     </div>
     <section className="panel" aria-label="Jerry 的個案清單">
       {listError ? <p className="empty" role="alert">{listError}</p> : !list ? <p className="empty" role="status">讀取個案中…</p> :
-        !list.linked ? <p className="empty">Jerry 用受邀的 ChatGPT 帳號登入並開啟工作室後，這裡會顯示他已儲存的個案。</p> :
+        !list.linked ? <p className="empty">還未連結 Jerry 的帳號。請 Jerry 打開「工作室設定 → 登入帳號」，核對受邀帳號，並確認顯示「Jerry 的個案已連結」。</p> :
         !list.records.length ? <p className="empty">Jerry 目前沒有已儲存的個案。</p> :
         list.records.map(item => <button className="client-row" key={item.id} aria-pressed={selected === item.id}
           onClick={() => { if (selected !== item.id) { setRecord(undefined); setDetailError(''); setSelected(item.id); } }}>
