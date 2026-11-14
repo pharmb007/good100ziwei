@@ -55,6 +55,8 @@ button.palace-tag:focus-visible { outline: 2px solid #29103e; outline-offset: 2p
   .chart-mark, .chart-legend span, .palace-tag, .chart-mode { print-color-adjust: exact; }
 }
 
+.client-scope { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+
 .shared-detail { margin-top: 20px; padding: 24px; }
 .shared-detail h3 { margin-top: 14px; }
 .shared-detail p { white-space: pre-wrap; overflow-wrap: anywhere; }

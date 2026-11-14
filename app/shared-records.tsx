@@ -54,7 +54,10 @@ export function SharedRecords({ openReport }: { openReport: (report: Report) => 
 
   return <>
     <div className="case-heading">
-      <div><h1>Jerry 的個案</h1><p>管理員唯讀檢視</p></div>
+      <div>
+        <h2>Jerry 的個案</h2>
+        <p>管理員唯讀檢視{list?.linked && ` · 已儲存 ${list.records.length} 筆`}</p>
+      </div>
       <button className="btn" onClick={reload}>重新整理</button>
     </div>
     <section className="panel" aria-label="Jerry 的個案清單">
